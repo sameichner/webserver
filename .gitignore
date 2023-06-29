@@ -1,0 +1,5 @@
+# personal archives
+*.zip
+
+# env variables
+.env
