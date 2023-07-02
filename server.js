@@ -40,14 +40,15 @@ app.post('/auth/register', (req, res) => {
             (err, result) => {
                 if (err) {
                     if ((err.code) == 'ER_DUP_ENTRY') {
-                        res.send('This username is already taken!');
-                        return;
+                        res.status(409).send('This username is already taken!');
                     } else throw err;
                 } else {
-                    res.send('Sucessfully Registered!');
+                    res.status(201).send('Sucessfully Registered!');
                 }
             }
         );
+    } else {
+        res.status(400).send('Username and password must not be empty!');
     }
 });
 
