@@ -3,6 +3,7 @@ const path = require('node:path');
 const session = require('express-session')
 const dotenv = require('dotenv').config();
 const mysql = require('mysql2');
+const bcrypt = require('bcrypt');
 
 const dbcon = mysql.createConnection({
     host:       process.env.SQLHOST,
@@ -10,6 +11,9 @@ const dbcon = mysql.createConnection({
     password:   process.env.SQLPASS,
     database:   process.env.SQLDB
 });
+
+const hashCost = 11;
+// change over time as computers get faster
 
 const app = express()
 const port = 8000;
@@ -36,17 +40,23 @@ app.post('/auth/register', (req, res) => {
     let username = req.body.username;
     let password = req.body.password;
     if (username && password) {
-        dbcon.query(`INSERT INTO logins VALUES (0, ?, ?)`, [username, password], 
-            (err, result) => {
-                if (err) {
-                    if ((err.code) == 'ER_DUP_ENTRY') {
-                        res.status(403).send('This username is already taken!');
-                    } else throw err;
-                } else {
-                    res.status(201).send('Sucessfully Registered!');
-                }
+        dbcon.query('SELECT username FROM logins WHERE username = ?', username,
+        (err, result) => {
+            if (err) throw err;
+            if (result.length) {
+                res.status(403).send('This username is already taken!');
+                return;
             }
-        );
+            bcrypt.hash(password, hashCost, (err, hashResult)=>{
+                if (err) throw err;
+                dbcon.query('INSERT INTO logins VALUES (0, ?, ?)', [username, hashResult], 
+                    (err, result) => {
+                        if (err) throw err;
+                        res.status(201).send('Sucessfully Registered!');
+            });
+        });
+    });
+
     } else {
         res.status(400).send('Username and password must not be empty!');
     }
@@ -56,7 +66,7 @@ app.post('/auth/login', (req, res) => {
     let username = req.body.username;
     let password = req.body.password;
     if (username && password) {
-        dbcon.query(`SELECT * FROM logins WHERE username = ? AND password = ?`, [username, password], 
+        dbcon.query('SELECT * FROM logins WHERE username = ?', username, 
             (err, result) => {
                 if (err) throw err;
                 switch (result.length) {
@@ -64,8 +74,15 @@ app.post('/auth/login', (req, res) => {
                         res.status(401).send('Incorrect username or password!');
                         return;
                     case 1:
-                        res.status(302).send('Successful Login!');
-                        // more login stuff should go here (session)
+                        bcrypt.compare(password, result[0].password, (err, hashmatch)=>{
+                            if (err) throw err;
+                            if (hashmatch) {
+                                res.status(302).send('Successful Login!');
+                                // more login stuff should go here (session)
+                            } else {
+                                res.status(401).send('Incorrect username or password!');
+                            }
+                        });
                         return;
                     default:
                         console.log('DB is doing something weird\n');
