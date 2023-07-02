@@ -40,10 +40,38 @@ app.post('/auth/register', (req, res) => {
             (err, result) => {
                 if (err) {
                     if ((err.code) == 'ER_DUP_ENTRY') {
-                        res.status(409).send('This username is already taken!');
+                        res.status(403).send('This username is already taken!');
                     } else throw err;
                 } else {
                     res.status(201).send('Sucessfully Registered!');
+                }
+            }
+        );
+    } else {
+        res.status(400).send('Username and password must not be empty!');
+    }
+});
+
+app.post('/auth/login', (req, res) => {
+    let username = req.body.username;
+    let password = req.body.password;
+    if (username && password) {
+        dbcon.query(`SELECT * FROM logins WHERE username = ? AND password = ?`, [username, password], 
+            (err, result) => {
+                if (err) throw err;
+                switch (result.length) {
+                    case 0:
+                        res.status(401).send('Incorrect username or password!');
+                        return;
+                    case 1:
+                        res.status(302).send('Successful Login!');
+                        // more login stuff should go here (session)
+                        return;
+                    default:
+                        console.log('DB is doing something weird\n');
+                        console.log(result);
+                        console.log(req);
+                        res.status(500).send('Multiple users exist with those credentials somehow, please contact site owner as to how this happened!');
                 }
             }
         );
