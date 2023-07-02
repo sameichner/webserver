@@ -14,6 +14,12 @@ const dbcon = mysql.createConnection({
 const app = express()
 const port = 8000;
 
+app.use(session({
+    secret: process.env.SESSIONSECRET,
+    resave: true,
+    saveUninitialized: true
+}));
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '/index.html'))
 });
